@@ -1,0 +1,3 @@
+﻿currency,iso_code,alt_key,long_text,short_text,rate_type,to_currency,valid_from,from_factor,to_factor
+ZZT,XTS,963,Prueba ZFX_FREE_SETUP borrar,Prueba,M,ARS,1800-01-01,1,1
+KRW,,,,,M,ARS,1800-01-01,1,1

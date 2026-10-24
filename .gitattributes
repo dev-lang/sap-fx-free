@@ -1,0 +1,5 @@
+* text=auto
+*.abap text eol=crlf
+*.csv  text eol=crlf
+*.py   text eol=lf
+*.md   text eol=lf

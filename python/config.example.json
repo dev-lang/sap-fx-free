@@ -1,0 +1,74 @@
+{
+  "source": {
+    "name": "BCRA",
+    "url": "https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones",
+    "timeout_seconds": 20
+  },
+  "currencies": [
+    "USD",
+    "EUR",
+    "BRL",
+    "CLP",
+    "UYU",
+    "CAD",
+    "PEN",
+    "JPY",
+    "MXN",
+    "COP",
+    "AUD",
+    "AWG",
+    "BOB",
+    "CHF",
+    "CNH",
+    "CNY",
+    "CZK",
+    "DKK",
+    "GBP",
+    "HKD",
+    "ILS",
+    "INR",
+    "NIO",
+    "NOK",
+    "NZD",
+    "PYG",
+    "RSD",
+    "RUB",
+    "SEK",
+    "SGD",
+    "TRY",
+    "VES",
+    "VND",
+    "XDR",
+    "ZAR"
+  ],
+  "code_map": {
+    "MXP": "MXN",
+    "VEB": "VES"
+  },
+  "api_units": {
+    "VND": 1000
+  },
+  "sap": {
+    "exchange_rate_type": "M",
+    "target_currency": "ARS"
+  },
+  "output_dir": "output",
+  "setup": {
+    "exclude": [
+      "EUR",
+      "REF",
+      "XAU",
+      "XAG"
+    ],
+    "valid_from": "1800-01-01",
+    "factors": {
+      "CLP": 1000,
+      "COP": 1000,
+      "JPY": 100,
+      "MXN": 100,
+      "PYG": 1000,
+      "VES": 1000,
+      "VND": 1000
+    }
+  }
+}

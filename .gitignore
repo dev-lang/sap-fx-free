@@ -1,0 +1,16 @@
+# Configuración local (copiar desde config.example.json)
+python/config.json
+
+# CSV/JSON generados por los scripts
+python/output/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

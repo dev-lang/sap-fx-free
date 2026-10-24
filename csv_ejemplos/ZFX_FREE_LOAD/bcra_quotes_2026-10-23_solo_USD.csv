@@ -1,0 +1,2 @@
+﻿currency,description,rate_type,from_currency,to_currency,valid_from,rate,source,source_url,source_date,source_field,status
+USD,DOLAR E.E.U.U.,M,USD,ARS,2026-10-23,1529.5,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED

@@ -1,0 +1,36 @@
+﻿currency,description,rate_type,from_currency,to_currency,valid_from,rate,source,source_url,source_date,source_field,status
+AUD,DOLAR AUSTRALIA,M,AUD,ARS,2026-10-23,1076.00325,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+AWG,FLORIN (ANTILLAS HOLANDESAS),M,AWG,ARS,2026-10-23,854.469274,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+BOB,BOLIVIANOS,M,BOB,ARS,2026-10-23,129.180743,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+BRL,REAL,M,BRL,ARS,2026-10-23,305.429638,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CAD,DOLAR CANADIEN.,M,CAD,ARS,2026-10-23,1092.578041,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CHF,FRANCO SUIZO,M,CHF,ARS,2026-10-23,1853.04095,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CLP,PESO CHILENO,M,CLP,ARS,2026-10-23,1.537418,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CNH,YUAN CNH RENMINBI OFF SHORE,M,CNH,ARS,2026-10-23,229.310345,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CNY,YUAN CNY RENMINBI,M,CNY,ARS,2026-10-23,229.303469,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+COP,COLOMBIANOS,M,COP,ARS,2026-10-23,0.486037,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+CZK,CORONAS CHECAS,M,CZK,ARS,2026-10-23,70.312464,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+DKK,CORONAS DANESAS,M,DKK,ARS,2026-10-23,229.049359,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+EUR,EURO,M,EUR,ARS,2026-10-23,1711.96935,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+GBP,LIBRA ESTERLINA,M,GBP,ARS,2026-10-23,2044.78855,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+HKD,DOLAR HONG KONG,M,HKD,ARS,2026-10-23,194.997259,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+ILS,LIBRA ISRAELI,M,ILS,ARS,2026-10-23,492.433999,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+INR,RUPIA (INDIA),M,INR,ARS,2026-10-23,16.109751,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+JPY,YENS,M,JPY,ARS,2026-10-23,9.748247,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+MXN,PESO MEXICANO,M,MXN,ARS,2026-10-23,81.96941,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion (MXP),REVIEW_REQUIRED
+NIO,CORDOBA NICARAGUENSE,M,NIO,ARS,2026-10-23,41.538345,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+NOK,CORONAS NORUEGA,M,NOK,ARS,2026-10-23,163.914222,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+NZD,DOLAR NEOZELANDES,M,NZD,ARS,2026-10-23,871.5091,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+PEN,SOLES,M,PEN,ARS,2026-10-23,443.256245,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+PYG,GUARANIES,M,PYG,ARS,2026-10-23,0.265106,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+RSD,DINAR SERBIA,M,RSD,ARS,2026-10-23,14.567749,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+RUB,RUSIA,M,RUB,ARS,2026-10-23,18.937471,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+SEK,CORONAS SUECAS,M,SEK,ARS,2026-10-23,153.859309,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+SGD,DOLAR DE SINGAPUR,M,SGD,ARS,2026-10-23,1196.323817,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+TRY,LIRA TURCA,M,TRY,ARS,2026-10-23,30.752063,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+USD,DOLAR E.E.U.U.,M,USD,ARS,2026-10-23,1529.5,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+UYU,PESO URUGUAYO,M,UYU,ARS,2026-10-23,38.13758,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+VES,BOLIVARES,M,VES,ARS,2026-10-23,1.73017348,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion (VEB),REVIEW_REQUIRED
+VND,DONG VIETNAM (C/1.000 UNIDADES),M,VND,ARS,2026-10-23,0.059188886,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+XDR,DEG,M,XDR,ARS,2026-10-23,2073.05371,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED
+ZAR,RAND SUD,M,ZAR,ARS,2026-10-23,92.159651,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2026-10-23,tipoCotizacion,REVIEW_REQUIRED

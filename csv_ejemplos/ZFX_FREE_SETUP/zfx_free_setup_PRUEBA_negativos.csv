@@ -1,0 +1,32 @@
+﻿currency,iso_code,alt_key,long_text,short_text,rate_type,to_currency,valid_from,from_factor,to_factor
+AUD,,,,,M,ARS,1800-01-01,1,1
+AWG,,,,,M,ARS,1800-01-01,1,1
+BOB,,,,,M,ARS,1800-01-01,1,1
+CHF,,,,,M,ARS,1800-01-01,1,1
+CNH,CNH,,Yuan renminbi offshore (CNH),Yuan offshore,M,ARS,1800-01-01,1,1
+CNY,,,,,M,ARS,1800-01-01,1,1
+CZK,,,,,M,ARS,1800-01-01,1,1
+DKK,,,,,M,ARS,1800-01-01,1,1
+GBP,,,,,M,ARS,1800-01-01,1,1
+HKD,,,,,M,ARS,1800-01-01,1,1
+ILS,,,,,M,ARS,1800-01-01,1,1
+INR,,,,,M,ARS,1800-01-01,1,1
+NIO,,,,,M,ARS,1800-01-01,1,1
+NOK,,,,,M,ARS,1800-01-01,1,1
+NZD,,,,,M,ARS,1800-01-01,1,1
+PYG,,,,,M,ARS,1800-01-01,1000,1
+RSD,,,,,M,ARS,1800-01-01,1,1
+RUB,,,,,M,ARS,1800-01-01,1,1
+SEK,,,,,M,ARS,1800-01-01,1,1
+SGD,,,,,M,ARS,1800-01-01,1,1
+TRY,,,,,M,ARS,1800-01-01,1,1
+UYU,,,,,M,ARS,1800-01-01,1,1
+VES,VES,928,Bolívar soberano venezolano,Bolívar sob.,M,ARS,1800-01-01,1000,1
+VND,,,,,M,ARS,1800-01-01,1000,1
+XDR,XDR,960,Derecho especial de giro (FMI),DEG,M,ARS,1800-01-01,1,1
+ZAR,,,,,M,ARS,1800-01-01,1,1
+KRW,,,,,M,ARS,1800-01-01,1,1
+CLP,,,,,M,ARS,1800-01-01,1,1
+ZZQ,,,,,M,ARS,1800-01-01,1,1
+GBP,,,,,M,ARS,2026-02-30,1,1
+NOK,,,,,M,ARS,1800-01-01,7,1
