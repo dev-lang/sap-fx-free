@@ -17,7 +17,9 @@ sap-fx-free/
 │   └── config.example.json    Copiar como config.json
 ├── abap/
 │   ├── ZFX_FREE_LOAD.abap     Carga cotizaciones tipo M -> ARS (TCURR) vía BAPI
-│   └── ZFX_FREE_SETUP.abap    Alta de monedas (OY03) y factores (OBBS) por batch input
+│   ├── ZFX_FREE_FETCH.abap    Descarga directa desde SAP (HTTPS) -> ZFX_FREE_LOAD
+│   ├── ZFX_FREE_SETUP.abap    Alta de monedas (OY03) y factores (OBBS) por batch input
+│   └── ZFX_FREE_HTTP_TEST.abap  Prueba de conexión HTTPS a la API del BCRA
 └── csv_ejemplos/
     ├── ZFX_FREE_LOAD/
     └── ZFX_FREE_SETUP/
@@ -86,6 +88,19 @@ En SAP: **ZFX_FREE_LOAD** con `output/bcra_quotes_AAAA-MM-DD.csv`.
 1. Primero en **simulación**.
 2. Después en **carga real**. Si hay advertencias revisadas, tildar *Acepto las advertencias*.
 
+#### Alternativa: descarga directa desde SAP (sin Python)
+
+**ZFX_FREE_FETCH** hace lo mismo que `sap_fx_free.py`, pero desde SAP. Consulta la API por HTTPS, arma el mismo CSV en memoria y llama a ZFX_FREE_LOAD, que valida y carga como siempre.
+
+- Opciones: fecha (vacía = la última publicada), simulación o carga real, y *Solo mostrar el CSV generado*.
+- Incluye solo las monedas con factores M X → ARS en OBBS. Las demás aparecen en el log como *Descarga: … excluida*.
+
+Requisitos en SAP:
+
+1. ICM con HTTPS activo. Lo confirma `ZFX_FREE_HTTP_TEST`.
+2. En **STRUST → SSL client Anonymous**, importar la raíz **ISRG Root X1** de Let's Encrypt (`https://letsencrypt.org/certs/isrgrootx1.der`), agregarla a la lista de certificados y grabar.
+3. Salida a Internet desde el servidor de aplicación.
+
 Se carga toda moneda que tenga factores **M X → ARS** en OBBS vigentes a la fecha. Si en OBBS el par deriva de otro tipo de cotización (columna *Alt. ERT*), la línea se informa como *OMITIDO*.
 
 ## Configuración (`config.json`)
@@ -149,6 +164,7 @@ Sistema de laboratorio con ECC 6.0 EHP6 sobre Sybase ASE 15.7, mandante 001. Los
 - **Monedas creadas:** CNH, VES (ISO 928) y XDR (ISO 960).
 - **Factores:** 26 entradas M X → ARS desde el 01.01.1800, más MXN 1:1 desde el 26.10.2026 (antes 100:1).
 - **EUR:** M EUR → ARS deriva de `EURX`; pendiente de definir.
+- **HTTPS:** CommonCryptoLib 8.5.56 (kernel 722), TLS 1.2. Se agregó ISRG Root X1 al PSE SSL cliente anónimo.
 - **Órdenes:** el customizing quedó en una orden propia. Las pruebas (moneda ficticia ZZT, KRW) están en otra orden que no se transporta.
 
 ## Licencia

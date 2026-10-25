@@ -20,6 +20,8 @@
 *& Versión 1.2 - 24.10.2026 (lista blanca = tabla mt_exp; EUR omitido)
 *& Versión 1.3 - 24.10.2026 (lista blanca = factores M X->ARS de OBBS;
 *&               aviso cerca del máximo de EXCH_RATE)
+*& Versión 1.4 - 24.10.2026 (entrada por memoria desde ZFX_FREE_FETCH:
+*&               descarga directa de la API del BCRA)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
@@ -101,6 +103,9 @@ CONSTANTS:
   gc_warn_rate TYPE p LENGTH 16 DECIMALS 9 VALUE '8000',
   gc_max_bytes TYPE i VALUE 1048576,      " 1 MB: el CSV real pesa < 5 KB
   gc_min_date  TYPE d VALUE '19900101',
+* Memoria ABAP compartida con ZFX_FREE_FETCH (contenido CSV + avisos)
+  gc_mem_csv   TYPE c LENGTH 20 VALUE 'ZFX_FREE_CSV',
+  gc_mem_info  TYPE c LENGTH 20 VALUE 'ZFX_FREE_INFO',
 * Estados internos
   gc_st_acc    TYPE c LENGTH 1 VALUE 'A',  " aceptado (listo para cargar)
   gc_st_rej    TYPE c LENGTH 1 VALUE 'R',  " rechazado (bloquea la carga)
@@ -146,6 +151,9 @@ SELECTION-SCREEN COMMENT 4(70) c_acept FOR FIELD p_acept.
 SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN END OF BLOCK b03.
 
+* Uso interno: ZFX_FREE_FETCH pasa el CSV por memoria ABAP (SUBMIT)
+PARAMETERS p_mem TYPE c LENGTH 1 NO-DISPLAY.
+
 *----------------------------------------------------------------------*
 * Clase principal
 *----------------------------------------------------------------------*
@@ -167,6 +175,7 @@ CLASS lcl_app DEFINITION FINAL.
           mt_cols     TYPE ty_t_col,
           mt_req      TYPE ty_t_string,
           mt_bapi_msg TYPE ty_t_string,
+          mt_info     TYPE ty_t_string,
           mv_ncols    TYPE i,
           mv_result   TYPE string,
           mv_n_total  TYPE i,
@@ -336,18 +345,35 @@ CLASS lcl_app IMPLEMENTATION.
           lv_n       TYPE i,
           lv_s1      TYPE string.
 
-    IF sy-batch = abap_true.
-      MESSAGE 'Ejecutar en diálogo: el archivo se lee desde SAP GUI.'
-        TYPE 'S' DISPLAY LIKE 'E'.
-      RETURN.
+*   1) Origen del CSV: memoria (ZFX_FREE_FETCH) o archivo local
+    IF p_mem = abap_true.
+      IMPORT csv = lv_content FROM MEMORY ID gc_mem_csv.
+      IMPORT info = mt_info FROM MEMORY ID gc_mem_info.
+      FREE MEMORY ID gc_mem_csv.
+      FREE MEMORY ID gc_mem_info.
+      IF lv_content IS INITIAL.
+        MESSAGE 'No llegó contenido desde ZFX_FREE_FETCH (memoria vacía).'
+          TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+    ELSE.
+      IF sy-batch = abap_true.
+        MESSAGE 'Ejecutar en diálogo: el archivo se lee desde SAP GUI.'
+          TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
+*     Lectura binaria + conversión UTF-8 (con BOM)
+      read_file( EXPORTING iv_file    = p_file
+                 IMPORTING ev_content = lv_content
+                           ev_error   = lv_error ).
+      IF lv_error IS NOT INITIAL.
+        MESSAGE lv_error TYPE 'S' DISPLAY LIKE 'E'.
+        RETURN.
+      ENDIF.
     ENDIF.
-
-*   1) Lectura binaria + conversión UTF-8 (con BOM)
-    read_file( EXPORTING iv_file    = p_file
-               IMPORTING ev_content = lv_content
-                         ev_error   = lv_error ).
-    IF lv_error IS NOT INITIAL.
-      MESSAGE lv_error TYPE 'S' DISPLAY LIKE 'E'.
+    IF sy-batch = abap_true AND p_real = abap_true.
+      MESSAGE 'La carga real en fondo todavía no está habilitada: usar simulación.'
+        TYPE 'S' DISPLAY LIKE 'E'.
       RETURN.
     ENDIF.
 
@@ -1504,6 +1530,12 @@ CLASS lcl_app IMPLEMENTATION.
     CONCATENATE 'Resultado:' mv_result INTO lv_txt SEPARATED BY space.
     ls_out-mensaje = lv_txt.
     APPEND ls_out TO mt_out.
+
+*   Avisos de la descarga (ZFX_FREE_FETCH): monedas excluidas, etc.
+    LOOP AT mt_info INTO lv_one.
+      CONCATENATE 'Descarga:' lv_one INTO ls_out-mensaje SEPARATED BY space.
+      APPEND ls_out TO mt_out.
+    ENDLOOP.
 
 *   ---- Registros -----------------------------------------------------
     LOOP AT mt_items INTO ls_item.
