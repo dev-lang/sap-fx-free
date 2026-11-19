@@ -119,6 +119,28 @@ Se carga toda moneda que tenga factores **M X → ARS** en OBBS vigentes a la fe
 
 En un día sin publicación del BCRA (feriado o no hábil) la API responde sin fecha: ZFX_FREE_FETCH termina sin error con *"Sin cotizaciones publicadas por el BCRA para el …: nada para cargar"*.
 
+#### Job diario (carga en fondo)
+
+ZFX_FREE_FETCH tiene un **modo job** (bloque *Job (solo en fondo)*) para programarlo en SM36. Solo actúa cuando corre en fondo; en diálogo no saltea ninguna confirmación.
+
+- **Variante:** carga real, *Modo job* marcado, fecha vacía (= el día de la corrida) y, opcionalmente, *Mail si falla* con una dirección.
+- **Paso del job:** programa `ZFX_FREE_FETCH` con esa variante. Conviene programarlo después del horario de publicación del BCRA (por ejemplo, 19:30) y con periodicidad diaria.
+- **Sin popup:** ZFX_FREE_LOAD acepta la carga real en fondo solo si viene de ZFX_FREE_FETCH en modo job.
+- **Advertencias:** si *Acepto las advertencias* no está marcado, cualquier advertencia cancela la carga. No se carga nada (no hay cargas parciales).
+
+| Resultado | Job en SM37 | Mail |
+|---|---|---|
+| Cargó todo | Finalizado | No |
+| Nada para cargar (ya estaba con el mismo valor) | Finalizado | No |
+| Sin publicación del BCRA (fin de semana, feriado) | Finalizado | No |
+| Advertencias, rechazos (por ejemplo, un valor corregido por el BCRA), error HTTP o de la API, fecha distinta a la pedida | **Cancelado** | Sí |
+
+- El **log de ZFX_FREE_LOAD** queda en el spool del job, a 255 columnas.
+- El **mail** sale por SCOT (`CL_BCS`); se puede seguir en SOST. Requiere SMTP configurado.
+- El usuario del paso necesita autorización para crear cotizaciones (`S_TABU_DIS` sobre V_TCURR) y para enviar mails. Los mensajes usan su formato de fecha.
+- **Límites:** no reintenta si alguien tiene OB08 o V_TCURR bloqueado (el job se cancela y avisa), y no compara cuántas monedas trajo el día contra lo esperado.
+- **Convención de fecha:** las cotizaciones del día D se cargan con validez desde D.
+
 ## Configuración (`config.json`)
 
 | Clave | Uso |

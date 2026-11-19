@@ -29,6 +29,8 @@
 *&               (ya cargada); motivo de omisión y "Nada para cargar".
 *&               2f: simulación con rechazos avisa que el archivo
 *&               quedaría bloqueado)
+*& Versión 1.6 - 19.11.2026 (modo job desde ZFX_FREE_FETCH: carga real
+*&               en fondo sin popup; resultado OK/NADA/ERROR a memoria)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
@@ -115,6 +117,7 @@ CONSTANTS:
 * Memoria ABAP compartida con ZFX_FREE_FETCH (contenido CSV + avisos)
   gc_mem_csv   TYPE c LENGTH 20 VALUE 'ZFX_FREE_CSV',
   gc_mem_info  TYPE c LENGTH 20 VALUE 'ZFX_FREE_INFO',
+  gc_mem_res   TYPE c LENGTH 20 VALUE 'ZFX_FREE_RES',   " resultado para el job
 * Estados internos
   gc_st_acc    TYPE c LENGTH 1 VALUE 'A',  " aceptado (listo para cargar)
   gc_st_rej    TYPE c LENGTH 1 VALUE 'R',  " rechazado (bloquea la carga)
@@ -167,6 +170,8 @@ SELECTION-SCREEN END OF BLOCK b03.
 
 * Uso interno: ZFX_FREE_FETCH pasa el CSV por memoria ABAP (SUBMIT)
 PARAMETERS p_mem TYPE c LENGTH 1 NO-DISPLAY.
+* Uso interno: modo job (solo vale en fondo, lo pone ZFX_FREE_FETCH)
+PARAMETERS p_job TYPE c LENGTH 1 NO-DISPLAY.
 
 *----------------------------------------------------------------------*
 * Clase principal
@@ -234,6 +239,7 @@ CLASS lcl_app DEFINITION FINAL.
     METHODS count_status.
     METHODS nothing_to_load
       RETURNING value(rv_yes) TYPE abap_bool.
+    METHODS export_result.
     METHODS build_output.
     METHODS display.
 
@@ -392,8 +398,9 @@ CLASS lcl_app IMPLEMENTATION.
         RETURN.
       ENDIF.
     ENDIF.
-    IF sy-batch = abap_true AND p_real = abap_true.
-      MESSAGE 'La carga real en fondo todavía no está habilitada: usar simulación.'
+    IF sy-batch = abap_true AND p_real = abap_true
+       AND ( p_job = abap_false OR p_mem = abap_false ).
+      MESSAGE 'La carga real en fondo solo corre en modo job, desde ZFX_FREE_FETCH.'
         TYPE 'S' DISPLAY LIKE 'E'.
       RETURN.
     ENDIF.
@@ -460,11 +467,43 @@ CLASS lcl_app IMPLEMENTATION.
              INTO mv_result SEPARATED BY space.
     ENDIF.
 
-*   8) Log
+*   8) Resultado para ZFX_FREE_FETCH (modo job): OK, NADA o ERROR
+    export_result( ).
+
+*   9) Log
     build_output( ).
     MESSAGE mv_result TYPE 'S'.
     display( ).
   ENDMETHOD.                    "run
+
+*======================================================================*
+* Resultado de la corrida para el job (memoria ABAP, la lee FETCH):
+*   OK    carga real hecha y verificada
+*   NADA  carga real sin nada nuevo (todo "ya cargada")
+*   SIM   simulación sin rechazos
+*   ERROR cualquier otro caso (rechazos, advertencias, BAPI, relectura)
+*======================================================================*
+  METHOD export_result.
+    DATA lv_code TYPE c LENGTH 5.
+
+    IF p_mem = abap_false.
+      RETURN.
+    ENDIF.
+    IF p_real = abap_true.
+      IF mv_n_load > 0 AND mv_n_notl = 0 AND mv_n_rej = 0.
+        lv_code = 'OK'.
+      ELSEIF mv_n_load = 0 AND mv_n_acc = 0 AND mv_n_rej = 0 AND mv_n_dup > 0.
+        lv_code = 'NADA'.
+      ELSE.
+        lv_code = 'ERROR'.
+      ENDIF.
+    ELSEIF mv_n_rej = 0.
+      lv_code = 'SIM'.
+    ELSE.
+      lv_code = 'ERROR'.
+    ENDIF.
+    EXPORT code = lv_code text = mv_result TO MEMORY ID gc_mem_res.
+  ENDMETHOD.                    "export_result
 
 *======================================================================*
 * Lectura del archivo: binario -> xstring -> quitar BOM -> UTF-8
@@ -1344,6 +1383,12 @@ CLASS lcl_app IMPLEMENTATION.
     ENDIF.
     IF check_auth( ) = abap_false.
       mv_result = 'Carga real cancelada: falta autorización S_TABU_DIS (o S_TABU_NAM) de modificación sobre V_TCURR.'.
+      RETURN.
+    ENDIF.
+
+*   Modo job en fondo: sin popup (las advertencias ya cancelaron arriba)
+    IF sy-batch = abap_true AND p_job = abap_true.
+      rv_ok = abap_true.
       RETURN.
     ENDIF.
 

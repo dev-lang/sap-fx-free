@@ -24,6 +24,10 @@
 *&               ZFX_FREE_CONST: antes, la API responde HTTP 400)
 *& Versión 1.2 - 19.11.2026 (día sin publicación del BCRA, "fecha":
 *&               null: fin normal "sin cotizaciones publicadas")
+*& Versión 1.3 - 19.11.2026 (modo job: en fondo, fecha vacía = hoy, sin
+*&               popup, errores tipo E para que SM37 marque Cancelado y
+*&               mail opcional si falla; control de la fecha devuelta y
+*&               timeout HTTP)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_fetch.
 
@@ -51,7 +55,12 @@ CONSTANTS:
   gc_tcurr    TYPE tcurf-tcurr VALUE 'ARS',
   gc_status   TYPE string VALUE 'REVIEW_REQUIRED',
   gc_mem_csv  TYPE c LENGTH 20 VALUE 'ZFX_FREE_CSV',
-  gc_mem_info TYPE c LENGTH 20 VALUE 'ZFX_FREE_INFO'.
+  gc_mem_info TYPE c LENGTH 20 VALUE 'ZFX_FREE_INFO',
+  gc_mem_res  TYPE c LENGTH 20 VALUE 'ZFX_FREE_RES',
+  gc_timeout  TYPE i VALUE 60.              " segundos (HTTP)
+
+* Modo job activo: p_job marcado y corriendo en fondo
+DATA gv_job TYPE abap_bool.
 
 *----------------------------------------------------------------------*
 * Pantalla de selección
@@ -94,6 +103,17 @@ SELECTION-SCREEN COMMENT 4(70) c_show FOR FIELD p_show.
 SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN END OF BLOCK b03.
 
+SELECTION-SCREEN BEGIN OF BLOCK b04 WITH FRAME TITLE t_b04.
+SELECTION-SCREEN BEGIN OF LINE.
+PARAMETERS p_job AS CHECKBOX.
+SELECTION-SCREEN COMMENT 4(70) c_job FOR FIELD p_job.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT 1(31) c_mail FOR FIELD p_mail.
+PARAMETERS p_mail TYPE ad_smtpadr LOWER CASE.
+SELECTION-SCREEN END OF LINE.
+SELECTION-SCREEN END OF BLOCK b04.
+
 INITIALIZATION.
   t_b01   = 'Origen: API del BCRA'.
   t_b02   = 'Modo de ejecución (lo aplica ZFX_FREE_LOAD)'.
@@ -106,6 +126,9 @@ INITIALIZATION.
   c_desv  = 'Variación para advertir (%)'.
   c_acept = 'Acepto las advertencias revisadas (solo carga real)'.
   c_show  = 'Solo mostrar el CSV generado (no llama a ZFX_FREE_LOAD)'.
+  t_b04   = 'Job (solo en fondo)'.
+  c_job   = 'Modo job: sin popup, fecha vacía = hoy, error = job Cancelado'.
+  c_mail  = 'Mail si falla (modo job)'.
 
 AT SELECTION-SCREEN.
   IF p_desv <= 0 OR p_desv > 1000.
@@ -119,6 +142,12 @@ AT SELECTION-SCREEN.
   ENDIF.
 
 START-OF-SELECTION.
+  IF p_job = abap_true AND sy-batch = abap_true.
+    gv_job = abap_true.
+    IF p_fecha IS INITIAL.
+      p_fecha = sy-datum.                  " el job carga el día de hoy
+    ENDIF.
+  ENDIF.
   PERFORM main.
 
 *======================================================================*
@@ -151,7 +180,9 @@ FORM main.
         lt_info   TYPE ty_t_string,
         lv_line   TYPE string,
         lv_nopub  TYPE abap_bool,
-        lv_dtxt   TYPE c LENGTH 10.
+        lv_dtxt   TYPE c LENGTH 10,
+        ls_pri    TYPE pri_params,
+        lv_valid  TYPE c LENGTH 1.
 
   lv_url = gc_url.
   IF p_fecha IS NOT INITIAL.
@@ -162,7 +193,7 @@ FORM main.
 * 1) Descarga
   PERFORM http_get USING lv_url CHANGING lv_json lv_error.
   IF lv_error IS NOT INITIAL.
-    MESSAGE lv_error TYPE 'S' DISPLAY LIKE 'E'.
+    PERFORM fail USING lv_error.
     RETURN.
   ENDIF.
 
@@ -184,12 +215,12 @@ FORM main.
     RETURN.
   ENDIF.
   IF lv_error IS NOT INITIAL.
-    MESSAGE lv_error TYPE 'S' DISPLAY LIKE 'E'.
+    PERFORM fail USING lv_error.
     RETURN.
   ENDIF.
   IF lv_n = 0.
-    MESSAGE 'La respuesta no trajo ninguna moneda habilitada en OBBS: no hay nada para cargar.'
-      TYPE 'S' DISPLAY LIKE 'E'.
+    lv_error = 'La respuesta no trajo ninguna moneda habilitada en OBBS: no hay nada para cargar.'.
+    PERFORM fail USING lv_error.
     RETURN.
   ENDIF.
 
@@ -213,19 +244,196 @@ FORM main.
   CONCATENATE 'API BCRA' lv_url INTO lv_s1 SEPARATED BY space.
   lv_label = lv_s1.
 
-  SUBMIT zfx_free_load
-    WITH p_file  = lv_label
-    WITH p_stat  = gc_status
-    WITH p_sim   = p_sim
-    WITH p_real  = p_real
-    WITH p_desv  = p_desv
-    WITH p_acept = p_acept
-    WITH p_mem   = abap_true
-    AND RETURN.
+  FREE MEMORY ID gc_mem_res.              " sin restos de otra corrida
+* En modo job, el log de ZFX_FREE_LOAD va a un spool propio (ancho 255);
+* si no, en fondo la lista del programa llamado se pierde.
+  IF gv_job = abap_true.
+    PERFORM job_print_params CHANGING ls_pri lv_valid.
+  ENDIF.
+  IF gv_job = abap_true AND lv_valid = abap_true.
+    SUBMIT zfx_free_load
+      WITH p_file  = lv_label
+      WITH p_stat  = gc_status
+      WITH p_sim   = p_sim
+      WITH p_real  = p_real
+      WITH p_desv  = p_desv
+      WITH p_acept = p_acept
+      WITH p_mem   = abap_true
+      WITH p_job   = gv_job
+      TO SAP-SPOOL SPOOL PARAMETERS ls_pri WITHOUT SPOOL DYNPRO
+      AND RETURN.
+  ELSE.
+    SUBMIT zfx_free_load
+      WITH p_file  = lv_label
+      WITH p_stat  = gc_status
+      WITH p_sim   = p_sim
+      WITH p_real  = p_real
+      WITH p_desv  = p_desv
+      WITH p_acept = p_acept
+      WITH p_mem   = abap_true
+      WITH p_job   = gv_job
+      AND RETURN.
+  ENDIF.
 
   FREE MEMORY ID gc_mem_csv.
   FREE MEMORY ID gc_mem_info.
+
+* 4) Modo job: resultado de ZFX_FREE_LOAD -> job log, y error si falló
+  IF gv_job = abap_true.
+    PERFORM job_result.
+  ENDIF.
+  FREE MEMORY ID gc_mem_res.
 ENDFORM.
+
+*======================================================================*
+* Parámetros de spool para el log de ZFX_FREE_LOAD en modo job: la
+* impresora del paso del job (sy-pdest) o LP01, formato X_65_255, sin
+* imprimir (queda en SP01 / spool del job).
+*======================================================================*
+FORM job_print_params CHANGING cs_pri   TYPE pri_params
+                               cv_valid TYPE c.
+* Variables tipadas: GET_PRINT_PARAMETERS no acepta literales sueltos
+* (CALL_FUNCTION_CONFLICT_TYPE en LIST_NAME)
+  DATA: lv_dest  TYPE pri_params-pdest,
+        lv_lay   TYPE pri_params-paart,
+        lv_lins  TYPE pri_params-linsz,
+        lv_lname TYPE pri_params-plist,
+        lv_imm   TYPE pri_params-primm,
+        lv_newid TYPE pri_params-prnew.
+
+  CLEAR: cs_pri, cv_valid.
+  lv_dest = sy-pdest.
+  IF lv_dest IS INITIAL.
+    lv_dest = 'LP01'.
+  ENDIF.
+  lv_lay   = 'X_65_255'.
+  lv_lins  = 255.
+  lv_lname = 'ZFX_FREE_LOAD'.
+  lv_imm   = space.
+  lv_newid = 'X'.
+  CALL FUNCTION 'GET_PRINT_PARAMETERS'
+    EXPORTING
+      destination    = lv_dest
+      immediately    = lv_imm
+      layout         = lv_lay
+      line_size      = lv_lins
+      list_name      = lv_lname
+      new_list_id    = lv_newid
+      no_dialog      = 'X'
+    IMPORTING
+      out_parameters = cs_pri
+      valid          = cv_valid
+    EXCEPTIONS
+      OTHERS         = 1.
+  IF sy-subrc <> 0.
+    CLEAR cv_valid.
+  ENDIF.
+ENDFORM.                    "job_print_params
+
+*======================================================================*
+* Error: en modo job manda el mail (si hay dirección) y corta con un
+* mensaje tipo E, para que SM37 marque el job como Cancelado. En
+* diálogo, mensaje de estado en rojo.
+*======================================================================*
+FORM fail USING iv_text TYPE string.
+  IF gv_job = abap_true.
+    PERFORM send_mail USING iv_text.
+    MESSAGE iv_text TYPE 'E'.
+  ELSE.
+    MESSAGE iv_text TYPE 'S' DISPLAY LIKE 'E'.
+  ENDIF.
+ENDFORM.                    "fail
+
+*======================================================================*
+* Resultado de ZFX_FREE_LOAD en modo job: OK o NADA = fin normal;
+* cualquier otro (o sin resultado) = error.
+*======================================================================*
+FORM job_result.
+  DATA: lv_code TYPE c LENGTH 5,
+        lv_text TYPE string.
+
+  IMPORT code = lv_code text = lv_text FROM MEMORY ID gc_mem_res.
+  IF sy-subrc <> 0.
+    lv_text = 'ZFX_FREE_LOAD terminó sin informar resultado: revisar el spool del job.'.
+    PERFORM fail USING lv_text.
+    RETURN.
+  ENDIF.
+  IF lv_code = 'OK' OR lv_code = 'NADA' OR lv_code = 'SIM'.
+    MESSAGE lv_text TYPE 'S'.
+  ELSE.
+    PERFORM fail USING lv_text.
+  ENDIF.
+ENDFORM.                    "job_result
+
+*======================================================================*
+* Mail por SCOT (CL_BCS) con el error. Si falla el envío, solo queda
+* en el job log: el job se cancela igual por el error original.
+*======================================================================*
+FORM send_mail USING iv_text TYPE string.
+  DATA: lo_send  TYPE REF TO cl_bcs,
+        lo_doc   TYPE REF TO cl_document_bcs,
+        lo_rec   TYPE REF TO if_recipient_bcs,
+        lx_bcs   TYPE REF TO cx_bcs,
+        lt_text  TYPE bcsy_text,
+        ls_text  TYPE soli,
+        lv_subj  TYPE so_obj_des,
+        lv_date  TYPE c LENGTH 10,
+        lv_txt   TYPE string,
+        lv_rest  TYPE string.
+
+  IF p_mail IS INITIAL.
+    RETURN.
+  ENDIF.
+
+  WRITE p_fecha TO lv_date DD/MM/YYYY.
+  CONCATENATE 'SAP FX Free: falló la carga del' lv_date
+         INTO lv_txt SEPARATED BY space.
+  lv_subj = lv_txt.
+
+  CONCATENATE 'Sistema' sy-sysid 'mandante' sy-mandt '- job ZFX_FREE_FETCH.'
+         INTO ls_text-line SEPARATED BY space.
+  APPEND ls_text TO lt_text.
+  CONCATENATE 'Fecha de cotización:' lv_date INTO ls_text-line SEPARATED BY space.
+  APPEND ls_text TO lt_text.
+  CLEAR ls_text.
+  APPEND ls_text TO lt_text.
+* El texto del error en líneas de 255 caracteres (SOLI)
+  lv_rest = iv_text.
+  WHILE lv_rest IS NOT INITIAL.
+    IF strlen( lv_rest ) > 255.
+      ls_text-line = lv_rest(255).
+      lv_rest = lv_rest+255.
+    ELSE.
+      ls_text-line = lv_rest.
+      CLEAR lv_rest.
+    ENDIF.
+    APPEND ls_text TO lt_text.
+  ENDWHILE.
+  CLEAR ls_text.
+  APPEND ls_text TO lt_text.
+  ls_text-line = 'No se cargó ninguna cotización. Detalle en SM37 (log y spool del job).'.
+  APPEND ls_text TO lt_text.
+
+  TRY.
+      lo_send = cl_bcs=>create_persistent( ).
+      lo_doc = cl_document_bcs=>create_document( i_type    = 'RAW'
+                                                 i_text    = lt_text
+                                                 i_subject = lv_subj ).
+      lo_send->set_document( lo_doc ).
+      lo_rec = cl_cam_address_bcs=>create_internet_address( p_mail ).
+      lo_send->add_recipient( lo_rec ).
+      lo_send->set_send_immediately( abap_true ).
+      lo_send->send( ).
+      COMMIT WORK.
+      CONCATENATE 'Mail de error enviado a' p_mail INTO lv_txt SEPARATED BY space.
+      MESSAGE lv_txt TYPE 'S'.
+    CATCH cx_bcs INTO lx_bcs.
+      lv_txt = lx_bcs->get_text( ).
+      CONCATENATE 'No se pudo enviar el mail de error:' lv_txt
+             INTO lv_txt SEPARATED BY space.
+      MESSAGE lv_txt TYPE 'S'.
+  ENDTRY.
+ENDFORM.                    "send_mail
 
 *======================================================================*
 * GET HTTPS
@@ -268,6 +476,8 @@ FORM http_get USING    iv_url   TYPE string
   lo_client->propertytype_logon_popup = if_http_client=>co_disabled.
 
   lo_client->send(
+    EXPORTING
+      timeout                    = gc_timeout
     EXCEPTIONS
       http_communication_failure = 1
       http_invalid_state         = 2
@@ -389,6 +599,13 @@ FORM json_to_csv USING    iv_json  TYPE string
     RETURN.
   ENDIF.
   CONCATENATE lv_fecha+0(4) lv_fecha+5(2) lv_fecha+8(2) INTO lv_datum.
+* La API tiene que devolver la fecha pedida
+  IF p_fecha IS NOT INITIAL AND lv_datum <> p_fecha.
+    CONCATENATE 'La API del BCRA devolvió la cotización del' lv_fecha
+                'en vez de la fecha pedida.'
+           INTO cv_error SEPARATED BY space.
+    RETURN.
+  ENDIF.
   lv_inv = lv_datum.
   TRANSLATE lv_inv USING '09182736455463728190'.
 
