@@ -26,7 +26,9 @@
 *&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO.
 *&               2b, cortes de escala de lcl_fx_cuts: fuera de rango,
 *&               OMITIDO. 2c, "ya existe" con el mismo valor: OMITIDO
-*&               (ya cargada); motivo de omisión y "Nada para cargar")
+*&               (ya cargada); motivo de omisión y "Nada para cargar".
+*&               2f: simulación con rechazos avisa que el archivo
+*&               quedaría bloqueado)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
@@ -116,7 +118,7 @@ CONSTANTS:
 * Estados internos
   gc_st_acc    TYPE c LENGTH 1 VALUE 'A',  " aceptado (listo para cargar)
   gc_st_rej    TYPE c LENGTH 1 VALUE 'R',  " rechazado (bloquea la carga)
-  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima, escala)
+  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima, escala, ya cargada)
   gc_st_load   TYPE c LENGTH 1 VALUE 'L',  " cargado y verificado
   gc_st_notl   TYPE c LENGTH 1 VALUE 'N',  " no cargado (revertido)
   gc_st_chk    TYPE c LENGTH 1 VALUE 'V',  " commit OK, verificación no coincide
@@ -443,6 +445,12 @@ CLASS lcl_app IMPLEMENTATION.
       ENDIF.
     ELSEIF nothing_to_load( ) = abap_true.
       CONCATENATE 'Simulación finalizada: no se modificó SAP.' mv_result
+             INTO mv_result SEPARATED BY space.
+    ELSEIF mv_n_rej > 0.
+*     En real este archivo se cancela entero (no hay cargas parciales)
+      lv_s1 = fmt_int( mv_n_rej ).
+      CONCATENATE 'Simulación finalizada: no se modificó SAP. El archivo quedaría BLOQUEADO:'
+                  lv_s1 'cotización(es) rechazada(s). Corregir antes de cargar.'
              INTO mv_result SEPARATED BY space.
     ELSE.
       lv_s1 = fmt_int( mv_n_acc ).

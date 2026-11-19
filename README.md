@@ -20,10 +20,12 @@ sap-fx-free/
 │   ├── ZFX_FREE_LOAD.abap     Carga cotizaciones tipo M -> ARS (TCURR) vía BAPI
 │   ├── ZFX_FREE_FETCH.abap    Descarga directa desde SAP (HTTPS) -> ZFX_FREE_LOAD
 │   ├── ZFX_FREE_SETUP.abap    Alta de monedas (OY03) y factores (OBBS) por batch input
+│   ├── ZFX_FREE_FACTOR.abap   Cambio de factores (OBBS) con análisis de impacto en TCURR
 │   └── ZFX_FREE_HTTP_TEST.abap  Prueba de conexión HTTPS a la API del BCRA
 └── csv_ejemplos/
     ├── ZFX_FREE_LOAD/
-    └── ZFX_FREE_SETUP/
+    ├── ZFX_FREE_SETUP/
+    └── PRUEBAS_2A/, PRUEBAS_2B/, PRUEBAS_2C/   Casos de prueba (solo simulación)
 ```
 
 ## Principios de diseño
@@ -50,7 +52,7 @@ python sap_fx_free.py --check-config
 
 ### ABAP
 
-1. SE38 → crear primero el include `ZFX_FREE_CONST` (tipo *Include*), y después `ZFX_FREE_LOAD`, `ZFX_FREE_FETCH` y `ZFX_FREE_SETUP` (programa ejecutable, paquete a elección). LOAD y FETCH usan el include.
+1. SE38 → crear primero el include `ZFX_FREE_CONST` (tipo *Include*), y después `ZFX_FREE_LOAD`, `ZFX_FREE_FETCH`, `ZFX_FREE_SETUP`, `ZFX_FREE_FACTOR` y `ZFX_FREE_HTTP_TEST` (programa ejecutable, paquete a elección). LOAD y FETCH usan el include.
 2. Utilidades → Otras utilidades → Carga/descarga → **Cargar** → elegir el `.abap`.
    - Los archivos están en **UTF-8**. Si en el diálogo aparece el campo *Encoding*, elegir UTF-8.
    - Si después de cargar se ven caracteres raros en los acentos, convertir el archivo a ANSI (Windows-1252) y volver a cargarlo.
@@ -76,6 +78,17 @@ En SAP: **ZFX_FREE_SETUP** con el CSV generado.
 2. Después en **ejecución real**, con una orden de customizing abierta y modo de batch input **N**.
 
 Lo que ya existe se informa como *YA EXISTE*. Si un factor existe con otros valores, la línea se rechaza.
+
+#### Cambiar un factor existente: ZFX_FREE_FACTOR
+
+Un factor nuevo cambia cómo se leen **todas** las cotizaciones del par desde su fecha (TCURR guarda los factores en 0; SAP toma el de OBBS a la fecha de conversión). Para cambiar un factor de un par que ya tiene cotizaciones, usar **ZFX_FREE_FACTOR** en vez de ZFX_FREE_SETUP:
+
+- Pantalla: par (tipo, moneda origen, destino) y hasta 3 factores nuevos con su fecha.
+- Muestra, para cada cotización del par, el factor con que se lee hoy y con el cambio, y el valor de 1 unidad antes y después.
+- **Bloquea** si alguna cotización cambia de lectura, si choca con un factor existente de la misma fecha, o si en una fecha donde el factor cambia no hay una cotización de ese mismo día habiendo cotizaciones anteriores.
+- Simulación por defecto; en real crea por SM30 (V_TCURF) en la orden de customizing indicada y verifica cada alta.
+
+**Regla:** todo cambio de factor va junto con una cotización de la misma fecha. Si no, las conversiones desde esa fecha usan una cotización cargada con el factor anterior (por ejemplo, MXN con factor 1:1 y la última cotización "por 100 MXN" daba importes 100 veces más altos).
 
 ### 2. Cotizaciones (diario)
 
@@ -103,6 +116,8 @@ Requisitos en SAP:
 3. Salida a Internet desde el servidor de aplicación.
 
 Se carga toda moneda que tenga factores **M X → ARS** en OBBS vigentes a la fecha. Si en OBBS el par deriva de otro tipo de cotización (columna *Alt. ERT*), la línea se informa como *OMITIDO*.
+
+En un día sin publicación del BCRA (feriado o no hábil) la API responde sin fecha: ZFX_FREE_FETCH termina sin error con *"Sin cotizaciones publicadas por el BCRA para el …: nada para cargar"*.
 
 ## Configuración (`config.json`)
 
@@ -144,6 +159,7 @@ La API devuelve un solo valor por moneda (`tipoCotizacion`, pesos por unidad). N
   - Desde **8.000**, los dos lados advierten.
   - Para seguir cargando, dar de alta un factor nuevo con fecha nueva y factor ARS 10, por ejemplo `"GBP": [1, 10]`.
 - **Fecha mínima.** No se cargan cotizaciones anteriores al **01.01.1992**, cuando empieza el peso (Decreto 2128/91; lo anterior es austral y no se reexpresa). ZFX_FREE_LOAD las informa como *OMITIDO* sin bloquear el archivo. La API del BCRA acepta fechas desde el **02.01.1992** (antes responde HTTP 400), así que ZFX_FREE_FETCH y `sap_fx_setup.py --fecha` no aceptan fechas anteriores. Las dos fechas están en el include `ZFX_FREE_CONST`.
+- **Simulación con rechazos.** Si hay líneas RECHAZADAS, la simulación avisa que el archivo quedaría bloqueado: en carga real no hay cargas parciales.
 - **Cortes de escala (redenominaciones).** El BCRA publica valores nominales con el código actual: el VES de 2003 es el bolívar de entonces, con otra escala. La tabla de `ZFX_FREE_CONST` (`lcl_fx_cuts`) dice en qué rango de fechas del BCRA el valor corresponde a cada moneda SAP; fuera de ese rango ZFX_FREE_LOAD deja la línea *OMITIDA*. Verificados en la serie del BCRA: VEB hasta el 28.12.2007, VEF del 02.01.2008 al 17.08.2018 y VES desde el **04.10.2021** (el BCRA aplicó el cambio de 2021 recién ese lunes, no el 01.10). TRY, RUB, BRL, UYU y MXN llevan la fecha oficial como protección; hoy no actúan porque el cambio es anterior a la serie.
 - **Monedas con pocos pesos por unidad.** Si una moneda vale menos de 1 ARS, `sap_fx_setup.py` le asigna factor 1000 para no perder decimales.
 - **EUR.** En algunos sistemas, la entrada M EUR → ARS de OBBS deriva del tipo `EURX`. En ese caso una cotización M para EUR no se usaría, y ZFX_FREE_LOAD la omite. Revisar OB07/OBBS antes de habilitarlo.
@@ -165,7 +181,7 @@ La API devuelve un solo valor por moneda (`tipoCotizacion`, pesos por unidad). N
 Sistema de laboratorio con ECC 6.0 EHP6 sobre Sybase ASE 15.7, mandante 001. Los programas Z están en `$TMP`.
 
 - **Monedas creadas:** CNH, VES (ISO 928) y XDR (ISO 960).
-- **Factores:** 26 entradas M X → ARS desde el 01.01.1800, más MXN 1:1 desde el 26.10.2026 (antes 100:1).
+- **Factores:** 26 entradas M X → ARS desde el 01.01.1800, más MXN 1:1 desde el 26.10.2026 (antes 100:1) y VES por tramos (1.000:1 desde 1800, 1:1 desde el 04.10.2021 y 1.000:1 desde el 23.10.2026, creados con ZFX_FREE_FACTOR): en 2021, 1.000 VES superaban el tope de 9.999,99999 ARS.
 - **EUR:** M EUR → ARS deriva de `EURX`; pendiente de definir.
 - **HTTPS:** CommonCryptoLib 8.5.56 (kernel 722), TLS 1.2. Se agregó ISRG Root X1 al PSE SSL cliente anónimo.
 - **Órdenes:** el customizing quedó en una orden propia. Las pruebas (moneda ficticia ZZT, KRW) están en otra orden que no se transporta.

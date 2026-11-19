@@ -22,6 +22,8 @@
 *& Versión 1.0 - 24.10.2026
 *& Versión 1.1 - 19.11.2026 (fecha mínima 02.01.1992 desde el include
 *&               ZFX_FREE_CONST: antes, la API responde HTTP 400)
+*& Versión 1.2 - 19.11.2026 (día sin publicación del BCRA, "fecha":
+*&               null: fin normal "sin cotizaciones publicadas")
 *&---------------------------------------------------------------------*
 REPORT zfx_free_fetch.
 
@@ -147,7 +149,9 @@ FORM main.
         lv_s1     TYPE string,
         lv_label  TYPE rlgrap-filename,
         lt_info   TYPE ty_t_string,
-        lv_line   TYPE string.
+        lv_line   TYPE string,
+        lv_nopub  TYPE abap_bool,
+        lv_dtxt   TYPE c LENGTH 10.
 
   lv_url = gc_url.
   IF p_fecha IS NOT INITIAL.
@@ -164,7 +168,21 @@ FORM main.
 
 * 2) JSON -> CSV
   PERFORM json_to_csv USING lv_json lv_url
-                      CHANGING lv_csv lt_info lv_n lv_error.
+                      CHANGING lv_csv lt_info lv_n lv_error lv_nopub.
+* Día sin publicación (feriado o no hábil): fin normal, nada que cargar
+  IF lv_nopub = abap_true.
+    IF p_fecha IS INITIAL.
+      MESSAGE 'El BCRA no publicó cotizaciones para la última fecha: nada para cargar.'
+        TYPE 'S'.
+    ELSE.
+      WRITE p_fecha TO lv_dtxt DD/MM/YYYY.
+      CONCATENATE 'Sin cotizaciones publicadas por el BCRA para el' lv_dtxt
+                  '(feriado o día no hábil): nada para cargar.'
+             INTO lv_s1 SEPARATED BY space.
+      MESSAGE lv_s1 TYPE 'S'.
+    ENDIF.
+    RETURN.
+  ENDIF.
   IF lv_error IS NOT INITIAL.
     MESSAGE lv_error TYPE 'S' DISPLAY LIKE 'E'.
     RETURN.
@@ -302,7 +320,8 @@ FORM json_to_csv USING    iv_json  TYPE string
                  CHANGING cv_csv   TYPE string
                           ct_info  TYPE ty_t_string
                           cv_count TYPE i
-                          cv_error TYPE string.
+                          cv_error TYPE string
+                          cv_nopub TYPE abap_bool.
   DATA: lv_fecha  TYPE string,
         lv_datum  TYPE d,
         lv_inv    TYPE tcurf-gdatu,
@@ -333,7 +352,7 @@ FORM json_to_csv USING    iv_json  TYPE string
         lv_moff   TYPE i,
         lv_mlen   TYPE i.
 
-  CLEAR: cv_csv, ct_info, cv_count, cv_error.
+  CLEAR: cv_csv, ct_info, cv_count, cv_error, cv_nopub.
   lv_crlf = cl_abap_char_utilities=>cr_lf.
 
 * Códigos del BCRA distintos de los de SAP (igual que config.json)
@@ -359,6 +378,13 @@ FORM json_to_csv USING    iv_json  TYPE string
   FIND REGEX '"fecha"\s*:\s*"(\d{4}-\d{2}-\d{2})"' IN iv_json
        SUBMATCHES lv_fecha.
   IF sy-subrc <> 0.
+*   Día sin publicación: la API responde 200 con "fecha": null y
+*   "detalle" vacío (pasó el 06.11, 09.11 y 10.11.2026)
+    FIND REGEX '"fecha"\s*:\s*null' IN iv_json.
+    IF sy-subrc = 0.
+      cv_nopub = abap_true.
+      RETURN.
+    ENDIF.
     cv_error = 'La respuesta del BCRA no trae la fecha de cotización.'.
     RETURN.
   ENDIF.
