@@ -37,6 +37,11 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = BASE_DIR / "config.json"
 LOG = logging.getLogger("sap_fx_setup")
 
+# Primera fecha que acepta la API del BCRA (verificado el 19.11.2026: hasta
+# el 01.01.1992 inclusive responde HTTP 400). Es la misma que usa
+# ZFX_FREE_FETCH (include ZFX_FREE_CONST, gc_api_min_date).
+MIN_API_DATE = date(1992, 1, 2)
+
 
 # --- Funciones de acceso al BCRA (copiadas de sap_fx_free.py) ---
 def http_get_json(url: str, timeout: int) -> Any:
@@ -212,7 +217,15 @@ def clip(text: str, size: int, campo: str, code: str) -> str:
 def build_url(config: dict, fecha: str | None) -> str:
     url = config["source"]["url"]
     if fecha:
-        datetime.strptime(fecha, "%Y-%m-%d")
+        try:
+            dia = datetime.strptime(fecha, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Fecha {fecha!r} inválida: se espera AAAA-MM-DD.") from None
+        if dia < MIN_API_DATE:
+            raise ValueError(f"La API del BCRA no acepta fechas anteriores al "
+                             f"{MIN_API_DATE:%d.%m.%Y} (antes del peso no hay cotizaciones).")
+        if dia > date.today():
+            raise ValueError(f"La fecha {dia:%d.%m.%Y} es futura.")
         url += ("&" if "?" in url else "?") + urllib.parse.urlencode({"fecha": fecha})
     return url
 

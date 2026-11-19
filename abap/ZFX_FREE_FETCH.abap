@@ -20,10 +20,14 @@
 *& Compatibilidad: SAP_BASIS 731 (sin sintaxis 7.40+). El JSON se lee con
 *& expresiones regulares (el formato de la API es fijo y simple).
 *& Versión 1.0 - 24.10.2026
+*& Versión 1.1 - 19.11.2026 (fecha mínima 02.01.1992 desde el include
+*&               ZFX_FREE_CONST: antes, la API responde HTTP 400)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_fetch.
 
 TYPE-POOLS: abap.
+
+INCLUDE zfx_free_const.   " gc_api_min_date (primera fecha de la API)
 
 TYPES: ty_t_string TYPE STANDARD TABLE OF string WITH DEFAULT KEY.
 
@@ -108,9 +112,27 @@ AT SELECTION-SCREEN.
   IF p_fecha IS NOT INITIAL AND p_fecha > sy-datlo.
     MESSAGE 'La fecha de cotización no puede ser futura.' TYPE 'E'.
   ENDIF.
+  IF p_fecha IS NOT INITIAL AND p_fecha < gc_api_min_date.
+    PERFORM error_min_date.
+  ENDIF.
 
 START-OF-SELECTION.
   PERFORM main.
+
+*======================================================================*
+* Fecha anterior a la primera que acepta la API: error en pantalla,
+* sin hacer el pedido HTTP (el BCRA respondería 400).
+*======================================================================*
+FORM error_min_date.
+  DATA: lv_d   TYPE c LENGTH 10,
+        lv_txt TYPE string.
+
+  WRITE gc_api_min_date TO lv_d DD/MM/YYYY.
+  CONCATENATE 'La API del BCRA no acepta fechas anteriores al' lv_d
+              '(antes del peso no hay cotizaciones).'
+         INTO lv_txt SEPARATED BY space.
+  MESSAGE lv_txt TYPE 'E'.
+ENDFORM.                    "error_min_date
 
 *======================================================================*
 * Proceso principal

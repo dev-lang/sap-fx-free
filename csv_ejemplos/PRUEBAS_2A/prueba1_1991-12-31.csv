@@ -1,0 +1,2 @@
+﻿currency,description,rate_type,from_currency,to_currency,valid_from,rate,source,source_url,source_date,source_field,status
+USD,DOLAR E.E.U.U.,M,USD,ARS,1991-12-31,0.99,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,1991-12-31,tipoCotizacion,REVIEW_REQUIRED

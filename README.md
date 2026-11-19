@@ -16,6 +16,7 @@ sap-fx-free/
 │   ├── sap_fx_setup.py        Monedas y factores     -> CSV para ZFX_FREE_SETUP
 │   └── config.example.json    Copiar como config.json
 ├── abap/
+│   ├── ZFX_FREE_CONST.abap    Include común de LOAD y FETCH (fecha mínima)
 │   ├── ZFX_FREE_LOAD.abap     Carga cotizaciones tipo M -> ARS (TCURR) vía BAPI
 │   ├── ZFX_FREE_FETCH.abap    Descarga directa desde SAP (HTTPS) -> ZFX_FREE_LOAD
 │   ├── ZFX_FREE_SETUP.abap    Alta de monedas (OY03) y factores (OBBS) por batch input
@@ -49,7 +50,7 @@ python sap_fx_free.py --check-config
 
 ### ABAP
 
-1. SE38 → crear `ZFX_FREE_LOAD` y `ZFX_FREE_SETUP` (programa ejecutable, paquete a elección).
+1. SE38 → crear primero el include `ZFX_FREE_CONST` (tipo *Include*), y después `ZFX_FREE_LOAD`, `ZFX_FREE_FETCH` y `ZFX_FREE_SETUP` (programa ejecutable, paquete a elección). LOAD y FETCH usan el include.
 2. Utilidades → Otras utilidades → Carga/descarga → **Cargar** → elegir el `.abap`.
    - Los archivos están en **UTF-8**. Si en el diálogo aparece el campo *Encoding*, elegir UTF-8.
    - Si después de cargar se ven caracteres raros en los acentos, convertir el archivo a ANSI (Windows-1252) y volver a cargarlo.
@@ -142,6 +143,7 @@ La API devuelve un solo valor por moneda (`tipoCotizacion`, pesos por unidad). N
 - **Tope de SAP.** La cotización (`UKURS`) admite hasta **9.999,99999** ARS por unidad de factor.
   - Desde **8.000**, los dos lados advierten.
   - Para seguir cargando, dar de alta un factor nuevo con fecha nueva y factor ARS 10, por ejemplo `"GBP": [1, 10]`.
+- **Fecha mínima.** No se cargan cotizaciones anteriores al **01.01.1992**, cuando empieza el peso (Decreto 2128/91; lo anterior es austral y no se reexpresa). ZFX_FREE_LOAD las informa como *OMITIDO* sin bloquear el archivo. La API del BCRA acepta fechas desde el **02.01.1992** (antes responde HTTP 400), así que ZFX_FREE_FETCH y `sap_fx_setup.py --fecha` no aceptan fechas anteriores. Las dos fechas están en el include `ZFX_FREE_CONST`.
 - **Monedas con pocos pesos por unidad.** Si una moneda vale menos de 1 ARS, `sap_fx_setup.py` le asigna factor 1000 para no perder decimales.
 - **EUR.** En algunos sistemas, la entrada M EUR → ARS de OBBS deriva del tipo `EURX`. En ese caso una cotización M para EUR no se usaría, y ZFX_FREE_LOAD la omite. Revisar OB07/OBBS antes de habilitarlo.
 - **Fuente.** Las cotizaciones son las publicadas por el BCRA en su API de estadísticas cambiarias. Verificar que el valor sea el adecuado para el uso contable de cada empresa.

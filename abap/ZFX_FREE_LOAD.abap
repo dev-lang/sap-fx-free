@@ -22,10 +22,14 @@
 *&               aviso cerca del máximo de EXCH_RATE)
 *& Versión 1.4 - 24.10.2026 (entrada por memoria desde ZFX_FREE_FETCH:
 *&               descarga directa de la API del BCRA)
+*& Versión 1.5 - en curso (19.11.2026: 2a, fecha mínima 01.01.1992 en
+*&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
 TYPE-POOLS: abap, icon.
+
+INCLUDE zfx_free_const.   " gc_min_date (fecha mínima de cotización)
 
 *----------------------------------------------------------------------*
 * Tipos globales
@@ -102,14 +106,13 @@ CONSTANTS:
 * A partir de este valor se advierte: conviene prever factor ARS 10
   gc_warn_rate TYPE p LENGTH 16 DECIMALS 9 VALUE '8000',
   gc_max_bytes TYPE i VALUE 1048576,      " 1 MB: el CSV real pesa < 5 KB
-  gc_min_date  TYPE d VALUE '19900101',
 * Memoria ABAP compartida con ZFX_FREE_FETCH (contenido CSV + avisos)
   gc_mem_csv   TYPE c LENGTH 20 VALUE 'ZFX_FREE_CSV',
   gc_mem_info  TYPE c LENGTH 20 VALUE 'ZFX_FREE_INFO',
 * Estados internos
   gc_st_acc    TYPE c LENGTH 1 VALUE 'A',  " aceptado (listo para cargar)
   gc_st_rej    TYPE c LENGTH 1 VALUE 'R',  " rechazado (bloquea la carga)
-  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido (par derivado de otro tipo)
+  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima)
   gc_st_load   TYPE c LENGTH 1 VALUE 'L',  " cargado y verificado
   gc_st_notl   TYPE c LENGTH 1 VALUE 'N',  " no cargado (revertido)
   gc_st_chk    TYPE c LENGTH 1 VALUE 'V'.  " commit OK, verificación no coincide
@@ -863,11 +866,6 @@ CLASS lcl_app IMPLEMENTATION.
              INTO rs_item-message SEPARATED BY space.
       RETURN.
     ENDIF.
-    IF rs_item-valid_from < gc_min_date.
-      CONCATENATE 'Fecha valid_from' lv_date 'anterior a 1990: no se carga.'
-             INTO rs_item-message SEPARATED BY space.
-      RETURN.
-    ENDIF.
     IF rs_item-source_date <> lv_date.
       CONCATENATE 'source_date (' rs_item-source_date
                   ') distinta de valid_from (' lv_date ').'
@@ -897,6 +895,18 @@ CLASS lcl_app IMPLEMENTATION.
     IF rs_item-rate_src <= 0.
       CONCATENATE 'Cotización' rs_item-rate_text 'debe ser mayor que cero.'
              INTO rs_item-message SEPARATED BY space.
+      RETURN.
+    ENDIF.
+
+*   Fecha anterior al peso (austral): se omite y no bloquea el archivo.
+*   Va al final para que una línea vieja con otro error siga RECHAZADA.
+*   La línea omitida no entra a duplicados ni a las consultas a SAP.
+    IF rs_item-valid_from < gc_min_date.
+      lv_s1 = fmt_date( gc_min_date ).
+      CONCATENATE 'Omitido: fecha anterior al' lv_s1
+                  '(austral); no se carga.'
+             INTO rs_item-message SEPARATED BY space.
+      rs_item-status = gc_st_omi.
       RETURN.
     ENDIF.
 
