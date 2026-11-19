@@ -33,7 +33,7 @@ sap-fx-free/
   - Monedas y factores se dan de alta por SM30, con las mismas validaciones que el alta manual, y quedan registrados en una orden de customizing.
 - **La simulación es el modo por defecto.** La ejecución real exige elegirla explícitamente y confirmar.
 - **Todo o nada.** Se valida el archivo completo antes de grabar. Si una línea se rechaza, no se carga ninguna.
-- **No sobrescribe.** Si una cotización o un factor ya existe, se informa y no se modifica.
+- **No sobrescribe y se puede repetir.** Si un factor ya existe, se informa y no se modifica. En ZFX_FREE_LOAD, una cotización que ya existe con el mismo valor queda *OMITIDA* ("ya cargada") y no bloquea el archivo; con otro valor, la línea se rechaza. Si no queda nada nuevo, el resultado es "Nada para cargar", sin error: correr dos veces el mismo día no falla.
 - **Verificación posterior.** Después de grabar, se relee cada alta para confirmarla.
 
 ## Instalación

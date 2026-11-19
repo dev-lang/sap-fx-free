@@ -25,7 +25,8 @@
 *& Versión 1.5 - en curso (19.11.2026: 2a, fecha mínima 01.01.1992 en
 *&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO.
 *&               2b, cortes de escala de lcl_fx_cuts: fuera de rango,
-*&               OMITIDO)
+*&               OMITIDO. 2c, "ya existe" con el mismo valor: OMITIDO
+*&               (ya cargada); motivo de omisión y "Nada para cargar")
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
@@ -69,6 +70,7 @@ TYPES: BEGIN OF ty_item,
          source_date  TYPE string,
          source_field TYPE string,
          csv_status   TYPE string,
+         omit_reason  TYPE c LENGTH 3,   " ver constantes gc_om_*
          message      TYPE string,
        END OF ty_item,
        ty_t_item TYPE STANDARD TABLE OF ty_item WITH DEFAULT KEY.
@@ -117,7 +119,12 @@ CONSTANTS:
   gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima, escala)
   gc_st_load   TYPE c LENGTH 1 VALUE 'L',  " cargado y verificado
   gc_st_notl   TYPE c LENGTH 1 VALUE 'N',  " no cargado (revertido)
-  gc_st_chk    TYPE c LENGTH 1 VALUE 'V'.  " commit OK, verificación no coincide
+  gc_st_chk    TYPE c LENGTH 1 VALUE 'V',  " commit OK, verificación no coincide
+* Motivos de omisión (status = gc_st_omi)
+  gc_om_der    TYPE c LENGTH 3 VALUE 'DER', " par derivado de otro tipo (EURX)
+  gc_om_min    TYPE c LENGTH 3 VALUE 'MIN', " anterior a la fecha mínima
+  gc_om_esc    TYPE c LENGTH 3 VALUE 'ESC', " corte de escala
+  gc_om_dup    TYPE c LENGTH 3 VALUE 'DUP'. " ya cargada con el mismo valor
 
 *----------------------------------------------------------------------*
 * Pantalla de selección
@@ -189,6 +196,10 @@ CLASS lcl_app DEFINITION FINAL.
           mv_n_warn   TYPE i,
           mv_n_rej    TYPE i,
           mv_n_omi    TYPE i,
+          mv_n_dup    TYPE i,             " omitidos por motivo
+          mv_n_der    TYPE i,
+          mv_n_min    TYPE i,
+          mv_n_esc    TYPE i,
           mv_n_load   TYPE i,
           mv_n_notl   TYPE i.
 
@@ -219,6 +230,8 @@ CLASS lcl_app DEFINITION FINAL.
     METHODS load.
     METHODS verify_loaded.
     METHODS count_status.
+    METHODS nothing_to_load
+      RETURNING value(rv_yes) TYPE abap_bool.
     METHODS build_output.
     METHODS display.
 
@@ -428,6 +441,9 @@ CLASS lcl_app IMPLEMENTATION.
         load( ).
         count_status( ).
       ENDIF.
+    ELSEIF nothing_to_load( ) = abap_true.
+      CONCATENATE 'Simulación finalizada: no se modificó SAP.' mv_result
+             INTO mv_result SEPARATED BY space.
     ELSE.
       lv_s1 = fmt_int( mv_n_acc ).
       CONCATENATE 'Simulación finalizada: no se modificó SAP.'
@@ -911,7 +927,8 @@ CLASS lcl_app IMPLEMENTATION.
       CONCATENATE 'Omitido: fecha anterior al' lv_s1
                   '(austral); no se carga.'
              INTO rs_item-message SEPARATED BY space.
-      rs_item-status = gc_st_omi.
+      rs_item-status      = gc_st_omi.
+      rs_item-omit_reason = gc_om_min.
       RETURN.
     ENDIF.
 
@@ -939,7 +956,8 @@ CLASS lcl_app IMPLEMENTATION.
       CONCATENATE 'Omitido:' lv_s1 lv_s2
                   'corresponde a otra escala; no se carga.'
              INTO rs_item-message SEPARATED BY space.
-      rs_item-status = gc_st_omi.
+      rs_item-status      = gc_st_omi.
+      rs_item-omit_reason = gc_om_esc.
       RETURN.
     ENDLOOP.
 
@@ -1048,7 +1066,8 @@ CLASS lcl_app IMPLEMENTATION.
         CONCATENATE 'Omitido: M' <ls_item>-from_curr '->ARS deriva del tipo'
                     ls_tcurf-abwct 'en OBBS; no se carga como tipo M.'
                INTO <ls_item>-message SEPARATED BY space.
-        <ls_item>-status = gc_st_omi.
+        <ls_item>-status      = gc_st_omi.
+        <ls_item>-omit_reason = gc_om_der.
         CONTINUE.
       ENDIF.
 
@@ -1172,11 +1191,31 @@ CLASS lcl_app IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
+*     Misma fecha ya cargada (idempotencia). Los factores no se
+*     comparan: TCURR guarda FFACT/TFACT en 0 y GETDETAIL devuelve los
+*     de OBBS a esa fecha, que son los mismos que usó rate_sap. Los dos
+*     valores están redondeados a 5 decimales, como TCURR.
       IF ls_exch-valid_from = <ls_item>-valid_from.
         lv_s1 = fmt_date( ls_exch-valid_from ).
+        IF ls_exch-exch_rate IS INITIAL.
+          CONCATENATE 'Ya existe la cotización M' <ls_item>-from_curr
+                      '->ARS del' lv_s1
+                      'en notación indirecta; no se compara. Resolver manualmente en OB08.'
+                 INTO <ls_item>-message SEPARATED BY space.
+          <ls_item>-status = gc_st_rej.
+          CONTINUE.
+        ENDIF.
         lv_s2 = fmt_num( iv_val = ls_exch-exch_rate iv_dec = 5 ).
+        IF ls_exch-exch_rate = <ls_item>-rate_sap.
+          CONCATENATE 'Ya cargada: M' <ls_item>-from_curr
+                      '->ARS del' lv_s1 'con el mismo valor (' lv_s2 ').'
+                 INTO <ls_item>-message SEPARATED BY space.
+          <ls_item>-status      = gc_st_omi.
+          <ls_item>-omit_reason = gc_om_dup.
+          CONTINUE.
+        ENDIF.
         CONCATENATE 'Ya existe la cotización M' <ls_item>-from_curr
-                    '->ARS del' lv_s1 '(valor' lv_s2
+                    '->ARS del' lv_s1 'con otro valor (' lv_s2
                     '). No se sobrescribe: resolver manualmente en OB08.'
                INTO <ls_item>-message SEPARATED BY space.
         <ls_item>-status = gc_st_rej.
@@ -1280,6 +1319,9 @@ CLASS lcl_app IMPLEMENTATION.
                   'registro(s) rechazado(s). Corregir el archivo; no se hacen cargas parciales.'
              INTO mv_result SEPARATED BY space.
       RETURN.
+    ENDIF.
+    IF nothing_to_load( ) = abap_true.
+      RETURN.                            " fin normal: mv_result ya armado
     ENDIF.
     IF mv_n_acc = 0.
       mv_result = 'Carga real cancelada: no hay cotizaciones aceptadas.'.
@@ -1480,9 +1522,28 @@ CLASS lcl_app IMPLEMENTATION.
 *======================================================================*
 * Conteos
 *======================================================================*
+*======================================================================*
+* "Nada para cargar": sin aceptadas ni rechazadas y con al menos una
+* cotización ya cargada con el mismo valor. Es un fin normal (p. ej. el
+* job que corre dos veces el mismo día), no una cancelación.
+*======================================================================*
+  METHOD nothing_to_load.
+    DATA lv_s1 TYPE string.
+
+    rv_yes = abap_false.
+    IF mv_n_acc = 0 AND mv_n_rej = 0 AND mv_n_dup > 0.
+      lv_s1 = fmt_int( mv_n_dup ).
+      CONCATENATE 'Nada para cargar:' lv_s1
+                  'cotización(es) ya existen con el mismo valor.'
+             INTO mv_result SEPARATED BY space.
+      rv_yes = abap_true.
+    ENDIF.
+  ENDMETHOD.                    "nothing_to_load
+
   METHOD count_status.
     DATA ls_item TYPE ty_item.
 
+    CLEAR: mv_n_dup, mv_n_der, mv_n_min, mv_n_esc.
     CLEAR: mv_n_total, mv_n_acc, mv_n_warn, mv_n_rej, mv_n_omi,
            mv_n_load, mv_n_notl.
     LOOP AT mt_items INTO ls_item.
@@ -1497,6 +1558,16 @@ CLASS lcl_app IMPLEMENTATION.
           mv_n_rej = mv_n_rej + 1.
         WHEN gc_st_omi.
           mv_n_omi = mv_n_omi + 1.
+          CASE ls_item-omit_reason.
+            WHEN gc_om_dup.
+              mv_n_dup = mv_n_dup + 1.
+            WHEN gc_om_der.
+              mv_n_der = mv_n_der + 1.
+            WHEN gc_om_min.
+              mv_n_min = mv_n_min + 1.
+            WHEN gc_om_esc.
+              mv_n_esc = mv_n_esc + 1.
+          ENDCASE.
         WHEN gc_st_load.
           mv_n_load = mv_n_load + 1.
         WHEN gc_st_notl OR gc_st_chk.
@@ -1520,7 +1591,8 @@ CLASS lcl_app IMPLEMENTATION.
           lv_s4    TYPE string,
           lv_s5    TYPE string,
           lv_s6    TYPE string,
-          lv_s7    TYPE string.
+          lv_s7    TYPE string,
+          lv_det   TYPE string.
 
     CLEAR mt_out.
 
@@ -1558,6 +1630,38 @@ CLASS lcl_app IMPLEMENTATION.
     lv_s3 = fmt_int( mv_n_warn ).
     lv_s4 = fmt_int( mv_n_rej ).
     lv_s5 = fmt_int( mv_n_omi ).
+*   Desglose de omitidos por motivo (solo los que hay)
+    IF mv_n_omi > 0.
+      CLEAR lv_det.
+      IF mv_n_dup > 0.
+        lv_one = fmt_int( mv_n_dup ).
+        CONCATENATE lv_det 'ya cargadas' lv_one INTO lv_det SEPARATED BY space.
+      ENDIF.
+      IF mv_n_der > 0.
+        lv_one = fmt_int( mv_n_der ).
+        IF lv_det IS NOT INITIAL.
+          CONCATENATE lv_det ',' INTO lv_det.
+        ENDIF.
+        CONCATENATE lv_det 'derivadas' lv_one INTO lv_det SEPARATED BY space.
+      ENDIF.
+      IF mv_n_min > 0.
+        lv_one = fmt_int( mv_n_min ).
+        IF lv_det IS NOT INITIAL.
+          CONCATENATE lv_det ',' INTO lv_det.
+        ENDIF.
+        CONCATENATE lv_det 'fecha mínima' lv_one INTO lv_det SEPARATED BY space.
+      ENDIF.
+      IF mv_n_esc > 0.
+        lv_one = fmt_int( mv_n_esc ).
+        IF lv_det IS NOT INITIAL.
+          CONCATENATE lv_det ',' INTO lv_det.
+        ENDIF.
+        CONCATENATE lv_det 'escala' lv_one INTO lv_det SEPARATED BY space.
+      ENDIF.
+      CONDENSE lv_det.
+      CONCATENATE lv_s5 '(' INTO lv_s5 SEPARATED BY space.
+      CONCATENATE lv_s5 lv_det ')' INTO lv_s5.
+    ENDIF.
     lv_s6 = fmt_int( mv_n_load ).
     lv_s7 = fmt_int( mv_n_notl ).
     CONCATENATE 'Procesados:' lv_s1
