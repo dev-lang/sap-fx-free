@@ -23,13 +23,15 @@
 *& Versión 1.4 - 24.10.2026 (entrada por memoria desde ZFX_FREE_FETCH:
 *&               descarga directa de la API del BCRA)
 *& Versión 1.5 - en curso (19.11.2026: 2a, fecha mínima 01.01.1992 en
-*&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO)
+*&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO.
+*&               2b, cortes de escala de lcl_fx_cuts: fuera de rango,
+*&               OMITIDO)
 *&---------------------------------------------------------------------*
 REPORT zfx_free_load.
 
 TYPE-POOLS: abap, icon.
 
-INCLUDE zfx_free_const.   " gc_min_date (fecha mínima de cotización)
+INCLUDE zfx_free_const.   " gc_min_date y cortes de escala (lcl_fx_cuts)
 
 *----------------------------------------------------------------------*
 * Tipos globales
@@ -112,7 +114,7 @@ CONSTANTS:
 * Estados internos
   gc_st_acc    TYPE c LENGTH 1 VALUE 'A',  " aceptado (listo para cargar)
   gc_st_rej    TYPE c LENGTH 1 VALUE 'R',  " rechazado (bloquea la carga)
-  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima)
+  gc_st_omi    TYPE c LENGTH 1 VALUE 'O',  " omitido: no se carga ni bloquea (derivado, fecha mínima, escala)
   gc_st_load   TYPE c LENGTH 1 VALUE 'L',  " cargado y verificado
   gc_st_notl   TYPE c LENGTH 1 VALUE 'N',  " no cargado (revertido)
   gc_st_chk    TYPE c LENGTH 1 VALUE 'V'.  " commit OK, verificación no coincide
@@ -179,6 +181,7 @@ CLASS lcl_app DEFINITION FINAL.
           mt_req      TYPE ty_t_string,
           mt_bapi_msg TYPE ty_t_string,
           mt_info     TYPE ty_t_string,
+          mt_cuts     TYPE ty_t_fx_cut,   " cortes de escala (include)
           mv_ncols    TYPE i,
           mv_result   TYPE string,
           mv_n_total  TYPE i,
@@ -405,6 +408,7 @@ CLASS lcl_app IMPLEMENTATION.
     ENDIF.
 
 *   4) Validación de contenido línea por línea (sin consultar SAP)
+    mt_cuts = lcl_fx_cuts=>get( ).
     LOOP AT lt_records INTO ls_record FROM 2.
       ls_item = check_record( ls_record ).
       APPEND ls_item TO mt_items.
@@ -752,7 +756,8 @@ CLASS lcl_app IMPLEMENTATION.
           lv_d2    TYPE d,
           lv_days  TYPE i,
           lv_n     TYPE i,
-          lv_bad   TYPE abap_bool.
+          lv_bad   TYPE abap_bool,
+          ls_cut   TYPE ty_fx_cut.
 
     rs_item-line   = is_rec-line.
     rs_item-status = gc_st_rej.          " se libera al final
@@ -909,6 +914,34 @@ CLASS lcl_app IMPLEMENTATION.
       rs_item-status = gc_st_omi.
       RETURN.
     ENDIF.
+
+*   Corte de escala: fuera del rango de fechas del BCRA en que el valor
+*   corresponde a esta moneda SAP, la línea se omite (no bloquea).
+    LOOP AT mt_cuts INTO ls_cut WHERE waers = rs_item-from_curr.
+      CLEAR lv_s2.
+      IF ls_cut-valid_from IS NOT INITIAL
+         AND rs_item-valid_from < ls_cut-valid_from.
+        lv_txt = fmt_date( ls_cut-valid_from ).
+        CONCATENATE 'antes del' lv_txt INTO lv_s2 SEPARATED BY space.
+      ELSEIF ls_cut-valid_to IS NOT INITIAL
+         AND rs_item-valid_from > ls_cut-valid_to.
+        lv_txt = fmt_date( ls_cut-valid_to ).
+        CONCATENATE 'después del' lv_txt INTO lv_s2 SEPARATED BY space.
+      ENDIF.
+      IF lv_s2 IS INITIAL.
+        CONTINUE.
+      ENDIF.
+      lv_s1 = rs_item-from_curr.
+      IF ls_cut-bcra <> ls_cut-waers.
+        CONCATENATE lv_s1 '(BCRA:' ls_cut-bcra INTO lv_s1 SEPARATED BY space.
+        CONCATENATE lv_s1 ')' INTO lv_s1.
+      ENDIF.
+      CONCATENATE 'Omitido:' lv_s1 lv_s2
+                  'corresponde a otra escala; no se carga.'
+             INTO rs_item-message SEPARATED BY space.
+      rs_item-status = gc_st_omi.
+      RETURN.
+    ENDLOOP.
 
 *   Todo correcto a nivel de contenido
     rs_item-status = gc_st_acc.

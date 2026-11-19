@@ -1,0 +1,6 @@
+﻿currency,description,rate_type,from_currency,to_currency,valid_from,rate,source,source_url,source_date,source_field,status
+VEB,BOLIVAR (VIEJO),M,VEB,ARS,2003-06-02,0.00178,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2003-06-02,tipoCotizacion,REVIEW_REQUIRED
+VEF,BOLIVAR FUERTE,M,VEF,ARS,2010-06-01,0.914,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2010-06-01,tipoCotizacion,REVIEW_REQUIRED
+VEB,BOLIVAR (VIEJO),M,VEB,ARS,2010-06-02,0.914,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2010-06-02,tipoCotizacion,REVIEW_REQUIRED
+VEF,BOLIVAR FUERTE,M,VEF,ARS,2019-03-01,0.0001,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2019-03-01,tipoCotizacion,REVIEW_REQUIRED
+VES,BOLIVAR SOBERANO,M,VES,ARS,2003-06-02,0.00178,BCRA,https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones,2003-06-02,tipoCotizacion,REVIEW_REQUIRED

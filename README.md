@@ -16,7 +16,7 @@ sap-fx-free/
 │   ├── sap_fx_setup.py        Monedas y factores     -> CSV para ZFX_FREE_SETUP
 │   └── config.example.json    Copiar como config.json
 ├── abap/
-│   ├── ZFX_FREE_CONST.abap    Include común de LOAD y FETCH (fecha mínima)
+│   ├── ZFX_FREE_CONST.abap    Include común de LOAD y FETCH (fecha mínima, cortes de escala)
 │   ├── ZFX_FREE_LOAD.abap     Carga cotizaciones tipo M -> ARS (TCURR) vía BAPI
 │   ├── ZFX_FREE_FETCH.abap    Descarga directa desde SAP (HTTPS) -> ZFX_FREE_LOAD
 │   ├── ZFX_FREE_SETUP.abap    Alta de monedas (OY03) y factores (OBBS) por batch input
@@ -144,6 +144,7 @@ La API devuelve un solo valor por moneda (`tipoCotizacion`, pesos por unidad). N
   - Desde **8.000**, los dos lados advierten.
   - Para seguir cargando, dar de alta un factor nuevo con fecha nueva y factor ARS 10, por ejemplo `"GBP": [1, 10]`.
 - **Fecha mínima.** No se cargan cotizaciones anteriores al **01.01.1992**, cuando empieza el peso (Decreto 2128/91; lo anterior es austral y no se reexpresa). ZFX_FREE_LOAD las informa como *OMITIDO* sin bloquear el archivo. La API del BCRA acepta fechas desde el **02.01.1992** (antes responde HTTP 400), así que ZFX_FREE_FETCH y `sap_fx_setup.py --fecha` no aceptan fechas anteriores. Las dos fechas están en el include `ZFX_FREE_CONST`.
+- **Cortes de escala (redenominaciones).** El BCRA publica valores nominales con el código actual: el VES de 2003 es el bolívar de entonces, con otra escala. La tabla de `ZFX_FREE_CONST` (`lcl_fx_cuts`) dice en qué rango de fechas del BCRA el valor corresponde a cada moneda SAP; fuera de ese rango ZFX_FREE_LOAD deja la línea *OMITIDA*. Verificados en la serie del BCRA: VEB hasta el 28.12.2007, VEF del 02.01.2008 al 17.08.2018 y VES desde el **04.10.2021** (el BCRA aplicó el cambio de 2021 recién ese lunes, no el 01.10). TRY, RUB, BRL, UYU y MXN llevan la fecha oficial como protección; hoy no actúan porque el cambio es anterior a la serie.
 - **Monedas con pocos pesos por unidad.** Si una moneda vale menos de 1 ARS, `sap_fx_setup.py` le asigna factor 1000 para no perder decimales.
 - **EUR.** En algunos sistemas, la entrada M EUR → ARS de OBBS deriva del tipo `EURX`. En ese caso una cotización M para EUR no se usaría, y ZFX_FREE_LOAD la omite. Revisar OB07/OBBS antes de habilitarlo.
 - **Fuente.** Las cotizaciones son las publicadas por el BCRA en su API de estadísticas cambiarias. Verificar que el valor sea el adecuado para el uso contable de cada empresa.
