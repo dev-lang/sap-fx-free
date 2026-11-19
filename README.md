@@ -25,7 +25,7 @@ sap-fx-free/
 └── csv_ejemplos/
     ├── ZFX_FREE_LOAD/
     ├── ZFX_FREE_SETUP/
-    └── PRUEBAS_2A/, PRUEBAS_2B/, PRUEBAS_2C/   Casos de prueba (solo simulación)
+    └── PRUEBAS_2A/, 2B/, 2C/, FINAL/   Casos de prueba de la v1.5 (los del 06.11.2026 usan un valor inventado: solo simulación)
 ```
 
 ## Principios de diseño

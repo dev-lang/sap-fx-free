@@ -22,7 +22,7 @@
 *&               aviso cerca del máximo de EXCH_RATE)
 *& Versión 1.4 - 24.10.2026 (entrada por memoria desde ZFX_FREE_FETCH:
 *&               descarga directa de la API del BCRA)
-*& Versión 1.5 - en curso (19.11.2026: 2a, fecha mínima 01.01.1992 en
+*& Versión 1.5 - 19.11.2026 (cerrada. 2a, fecha mínima 01.01.1992 en
 *&               el include ZFX_FREE_CONST; lo anterior queda OMITIDO.
 *&               2b, cortes de escala de lcl_fx_cuts: fuera de rango,
 *&               OMITIDO. 2c, "ya existe" con el mismo valor: OMITIDO
